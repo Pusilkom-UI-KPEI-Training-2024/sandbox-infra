@@ -1,0 +1,61 @@
+---
+- name: Configure fresh server
+  hosts: kpei
+  become: true
+  tasks:
+    - name: Install required system packages
+      ansible.builtin.apt:
+        update_cache: true
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - git
+          - htop
+          - gpg
+          - gpg-agent
+          - python3-apt
+          - python3-pip
+          - python3-setuptools
+          - python3-passlib
+          - software-properties-common
+          - unzip
+          - wget
+        install_recommends: no
+        state: present
+
+    - name: Create systemd system unit directory
+      ansible.builtin.file:
+        path: /usr/local/lib/systemd/system/
+        state: directory
+
+    - name: Create default, non-root admin user named `kpei`
+      ansible.builtin.user:
+        name: kpei
+        comment: Contoh user KPEI
+        create_home: true
+        state: present
+
+    - name: Add authorized SSH key for user `kpei`
+      ansible.posix.authorized_key:
+        user: kpei
+        key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+        state: present
+
+    - name: Enable passwordless sudo for user `kpei`
+      community.general.sudoers:
+        name: kpei
+        user: kpei
+        commands: ALL
+        nopassword: true
+
+- name: Install Docker
+  hosts: kpei
+  become: true
+  roles:
+    - geerlingguy.docker
+  vars:
+    docker_edition: "ce"
+    docker_users:
+      - "{{ ansible_user }}"
+      - kpei
